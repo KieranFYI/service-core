@@ -59,9 +59,7 @@ class Builder extends QueryBuilder
                     abort(510);
                 }
 
-                if ($response->failed()) {
-                    die($response->body());
-                }
+                $response->throw();
 
                 $threshold = config('debugbar.options.db.slow_threshold', false);
                 if (!$threshold || $time > $threshold) {
