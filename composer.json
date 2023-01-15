@@ -1,0 +1,32 @@
+{
+    "name": "kieranfyi/services-core",
+    "type": "project",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "KieranFYI\\Services\\Core\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Kieran",
+            "email": "kieran@andersons.bz"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [
+                "KieranFYI\\Services\\Core\\Providers\\ServicesCorePackageServiceProvider"
+            ]
+        }
+    },
+    "require": {
+        "php": "^8.1",
+        "guzzlehttp/guzzle": "^7.5",
+        "laravel/framework": "^9.19",
+        "ext-curl": "*",
+        "kieranfyi/misc": "^0.3.5",
+        "laravie/serialize-queries": "^2.1",
+        "kieranfyi/logging": "^0.3.8"
+    }
+}
