@@ -27,7 +27,11 @@ class Builder extends QueryBuilder
     public function get($columns = ['*'])
     {
         $endpoint = null;
-        foreach (config('service.endpoints', []) as $key => $models) {
+        $endpoints = config('service.endpoints', []);
+        if (is_null($endpoints)) {
+            $endpoints = [];
+        }
+        foreach ($endpoints as $key => $models) {
             if (!in_array($this->serviceModel, $models)) {
                 continue;
             }
