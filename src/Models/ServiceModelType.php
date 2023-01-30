@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use KieranFYI\Logging\Traits\LoggingTrait;
+use KieranFYI\Misc\Traits\KeyedTitle;
+use KieranFYI\Services\Core\Traits\Serviceable;
 
 /**
  * @property string $name
@@ -15,7 +17,9 @@ use KieranFYI\Logging\Traits\LoggingTrait;
  */
 class ServiceModelType extends Model
 {
+    use Serviceable;
     use LoggingTrait;
+    use KeyedTitle;
 
     /**
      * @var string[]
@@ -39,6 +43,11 @@ class ServiceModelType extends Model
         'service_model_type_id',
         'service_id'
     ];
+
+    /**
+     * @var string
+     */
+    protected string $title_key = 'name';
 
     /**
      * @return BelongsToMany

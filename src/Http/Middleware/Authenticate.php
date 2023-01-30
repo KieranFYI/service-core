@@ -2,12 +2,20 @@
 
 namespace KieranFYI\Services\Core\Http\Middleware;
 
-use Closure;
-use Illuminate\Auth\AuthenticationException;
+use Exception;
 use Illuminate\Contracts\Auth\Factory as Auth;
 use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
+use Illuminate\Http\Response;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
+use KieranFYI\Services\Core\Interfaces\ServiceInterface;
+use KieranFYI\Services\Core\Models\Service;
+use KieranFYI\Services\Core\Services\EchoService;
+use KieranFYI\Services\Core\Services\EventService;
+use KieranFYI\Services\Core\Services\MaintenanceService;
+use KieranFYI\Services\Core\Services\QueryService;
+use KieranFYI\Services\Core\Services\RegistrationService;
 
 class Authenticate implements AuthenticatesRequests
 {
@@ -17,6 +25,11 @@ class Authenticate implements AuthenticatesRequests
      * @var Auth
      */
     protected Auth $auth;
+
+    /**
+     * @var string
+     */
+    private string $guard = 'services';
 
     /**
      * Create a new middleware instance.
@@ -33,22 +46,93 @@ class Authenticate implements AuthenticatesRequests
      * Handle an incoming request.
      *
      * @param Request $request
-     * @param Closure $next
-     * @param string[] ...$guards
-     * @return mixed
-     *
-     * @throws AuthenticationException
+     * @return Response
      */
-    public function handle($request, Closure $next, ...$guards)
+    public function handle(Request $request): Response
     {
-        $guard = $this->auth->guard('services');
-        if (!$guard->check() || $guard->user()->name !== $request->userAgent()) {
+        $guard = $this->auth->guard($this->guard);
+        if (!$guard->check()) {
             abort(401);
         }
-        $this->auth->shouldUse('services');
+        $this->auth->shouldUse($this->guard);
 
-        $guard->user()->update(['last_used_at' => Carbon::now()]);
+        /** @var Service $service */
+        $service = $guard->user();
+        //$service->update(['last_used_at' => Carbon::now()]);
 
-        return $next($request);
+        $content = $this->decryptContent($service, $request);
+        /** @var ServiceInterface $content */
+        $response = $content->execute();
+        if (!is_null($response)) {
+            $content = $response;
+        }
+
+        return response($this->encryptContent($service, $content));
+    }
+
+    /**
+     * @param Service $service
+     * @param Request $request
+     * @return mixed
+     * @throws Exception
+     */
+    public function decryptContent(Service $service, Request $request): mixed
+    {
+        $allowed = [
+            EchoService::class,
+            EventService::class,
+            MaintenanceService::class,
+            QueryService::class,
+            RegistrationService::class,
+        ];
+
+        $serviceClass = $request->json('service');
+        if (!in_array($serviceClass, $allowed)) {
+            abort(401);
+        }
+
+        $content = $request->json('content');
+        if (empty($content)) {
+            abort(401);
+        }
+
+        $content = base64_decode($content);
+        if (config('service.encrypt')) {
+            if (strlen($content) < 16) {
+                abort(401);
+            }
+
+            $key = substr($content, 0, 16);
+            $encrypted = substr($content, 16);
+            $content = openssl_decrypt($encrypted, config('app.cipher'), $service->symmetric_key, iv: $key);
+            if ($encrypted === $content || $content === false) {
+                abort(401);
+            }
+        }
+
+        preg_match_all('/O:\d+:\"(.*?)\"/', $content, $matches);
+        if (!Str::is($serviceClass, $matches[1][0] ?? null)) {
+            abort(401);
+        }
+
+        return unserialize($content);
+    }
+
+    /**
+     * @param Service $service
+     * @param ServiceInterface $content
+     * @return string
+     * @throws Exception
+     */
+    public function encryptContent(Service $service, mixed $content): string
+    {
+        $content = serialize($content);
+
+        if (config('service.encrypt')) {
+            $iv = random_bytes(16);
+            $content = $iv . openssl_encrypt($content, config('app.cipher'), $service->symmetric_key, iv: $iv);
+        }
+
+        return base64_encode($content);
     }
 }

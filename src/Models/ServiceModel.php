@@ -5,6 +5,7 @@ namespace KieranFYI\Services\Core\Models;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Support\Carbon;
+use KieranFYI\Services\Core\Traits\Serviceable;
 
 /**
  * @property string $name
@@ -14,6 +15,7 @@ use Illuminate\Support\Carbon;
  */
 class ServiceModel extends Pivot
 {
+    use Serviceable;
 
     /**
      * @var string[]

@@ -2,18 +2,21 @@
 
 namespace KieranFYI\Services\Core\Eloquent;
 
-use Exception;
 use Illuminate\Database\Query\Builder as QueryBuilder;
-use Illuminate\Http\Client\ConnectionException;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Collection;
 use KieranFYI\Misc\Facades\Debugbar;
-use KieranFYI\Misc\Traits\HTTPRequestTrait;
-use Laravie\SerializesQuery\Query;
-use Symfony\Component\HttpKernel\Exception\HttpException;
+use KieranFYI\Services\Core\Models\Service;
+use KieranFYI\Services\Core\Services\QueryService;
+use KieranFYI\Services\Core\Traits\ServiceHTTPRequest;
 
 class Builder extends QueryBuilder
 {
-    use HTTPRequestTrait;
+    use ServiceHTTPRequest;
+
+    /**
+     * @var Collection|null
+     */
+    private static Collection|null $servicesCollection = null;
 
     /**
      * @var string|null
@@ -26,61 +29,26 @@ class Builder extends QueryBuilder
      */
     public function get($columns = ['*'])
     {
-        $endpoint = null;
-        $endpoints = config('service.endpoints', []);
-        if (is_null($endpoints)) {
-            $endpoints = [];
+        if (is_null(static::$servicesCollection)) {
+            // Set this to a non null value to "imply" the models have loaded and hit the database directly
+            // This should only run on the first database call of each website lifecycle.
+            static::$servicesCollection = collect();
+            static::$servicesCollection = Service::get();
         }
-        foreach ($endpoints as $key => $models) {
-            if (!in_array($this->serviceModel, $models)) {
-                continue;
-            }
 
-            $endpoint = $key;
-            break;
-        }
-        if (is_null($endpoint)) {
-            Debugbar::debug('No service endpoint found');
+        $service = static::$servicesCollection->first(function (Service $service) {
+            return $service->types->contains($this->serviceModel);
+        });
+
+        if (is_null($service)) {
+            Debugbar::debug('No service found');
             return parent::get($columns);
         }
 
-        return Debugbar::measure('ServiceBuilder', function () use ($endpoint, $columns) {
-            try {
-                $startTime = microtime(true);
-                $response = $this->timeout(1)
-                    ->auth('Bearer ' . config('service.token'))
-                    ->userAgent(config('app.name'))
-                    ->post($endpoint, [
-                        'query' => Query::serialize($this),
-                        'columns' => $columns,
-                        'model' => $this->serviceModel,
-                    ]);
+        $query = new QueryService($this, $columns, $this->serviceModel);
+        $this->post($service, $query);
 
-                $time = microtime(true) - $startTime;
-                if ($response->unauthorized()) {
-                    abort(511);
-                } else if ($response->forbidden()) {
-                    abort(510);
-                }
-
-                $response->throw();
-
-                $threshold = config('debugbar.options.db.slow_threshold', false);
-                if (!$threshold || $time > $threshold) {
-                    if (Debugbar::hasCollector('queries')) {
-                        Debugbar::getCollector('queries')->addQuery($this->toSql(), $this->bindings, $time, DB::connection());
-                    }
-                }
-
-                return $response->collect();
-            } catch (HttpException $e) {
-                throw $e;
-            } catch (ConnectionException $e) {
-                abort(504);
-            } catch (Exception $e) {
-                abort(502);
-            }
-        });
+        return $query->collect();
     }
 
     /**
