@@ -18,7 +18,7 @@ class ServiceGenerateTest extends TestCase
         $decoded = base64_decode($result);
         $this->assertNotFalse($decoded);
 
-        $data = json_decode($decoded);
+        $data = json_decode($decoded, true);
         $this->assertArrayHasKey('name', $data);
         $this->assertArrayHasKey('endpoint', $data);
         $this->assertArrayHasKey('identifier', $data);
