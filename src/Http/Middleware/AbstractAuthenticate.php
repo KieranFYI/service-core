@@ -106,8 +106,8 @@ abstract class AbstractAuthenticate implements AuthenticatesRequests
                 abort(401);
             }
             if (!isset($service->symmetric_key)) {
-                openssl_private_decrypt($content, $decrypted, $service->asymmetric_key);
-                if ($decrypted === $content || $decrypted === false) {
+                $result = openssl_private_decrypt($content, $decrypted, $service->asymmetric_key);
+                if ($decrypted === $content || $result === false) {
                     abort(401);
                 }
                 $content = $decrypted;
