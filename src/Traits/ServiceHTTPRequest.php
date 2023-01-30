@@ -18,56 +18,51 @@ trait ServiceHTTPRequest
     use HTTPClientTrait;
 
     /**
-     * @param Encrypter $decrypter
-     * @param string $endpoint
-     * @param array $data
+     * @param Service $service
+     * @param ServiceInterface $interface
      * @return Response
      */
-    protected function post(Service $service, ServiceInterface $interface): mixed
+    protected function servicePost(Service $service, ServiceInterface $interface): mixed
     {
         Debugbar::debug('Sending ' . $interface::class);
         return Debugbar::measure('ServiceBuilder', function () use ($service, $interface) {
             try {
                 $data = serialize($interface);
                 if (config('service.encrypt')) {
-                    $data = $service->encrypter->encrypt($data);
+                    $iv = random_bytes(16);
+                    $data = $iv . openssl_encrypt($data, config('app.cipher'), $service->symmetric_key, iv: $iv);
                 }
 
-                $startTime = microtime(true);
                 $response = $this->auth('Bearer ' . $service->key)
                     ->userAgent(config('app.name'))
                     ->client()
                     ->post($service->endpoint, [
-                        'content' => base64_encode($data),
                         'service' => get_class($interface),
+                        'content' => base64_encode($data),
                     ]);
-                $time = microtime(true) - $startTime;
 
-                if (config('app.debug') && $response->failed()) {
-                    $body = $response->body();
-                    die($body);
-                    if (config('service.encrypt')) {
-                        $body = Crypt::decrypt($body);
-                    }
-                }
                 if ($response->unauthorized()) {
                     abort(511);
                 } else if ($response->forbidden()) {
                     abort(510);
                 }
+                $response->throw();
 
-                $threshold = config('debugbar.options.db.slow_threshold', false);
-                if (!$threshold || $time > $threshold) {
-                    if (Debugbar::hasCollector('queries')) {
-                        Debugbar::getCollector('queries')->addQuery($this->toSql(), $this->bindings, $time, DB::connection());
+                $content = base64_decode($response->body());
+                if (config('service.encrypt')) {
+                    if (strlen($content) < 16) {
+                        abort(502);
+                    }
+
+                    $key = substr($content, 0, 16);
+                    $encrypted = substr($content, 16);
+                    $content = openssl_decrypt($encrypted, config('app.cipher'), $service->symmetric_key, iv: $key);
+                    if ($encrypted === $content || $content === false) {
+                        abort(502);
                     }
                 }
-                $body = $response->body();
-                if (config('service.encrypt')) {
-                    $body = Crypt::decrypt($body);
-                }
 
-                return base64_decode(unserialize($body));
+                return unserialize($content);
             } catch (ConnectionException $e) {
                 throw_if(config('app.debug'), $e);
                 abort(504);

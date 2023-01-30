@@ -47,6 +47,47 @@ class AuthenticateTest extends TestCase
         $this->assertEquals($testMessage, $content->execute());
     }
 
+    /**
+     * @throws Exception
+     */
+    public function testDecryptNoSymmetricKey()
+    {
+        $this->artisan('migrate')->run();
+
+        $res = openssl_pkey_new([
+            "digest_alg" => "sha512",
+            "private_key_bits" => 4096,
+            "private_key_type" => OPENSSL_KEYTYPE_RSA,
+        ]);
+        $error = openssl_error_string();
+        openssl_pkey_export($res, $privateKey);
+        $publicKey = openssl_pkey_get_details($res);
+        $publicKey = $publicKey["key"];
+
+        $testMessage = 'Test';
+        /** @var Service $service */
+        $service = Service::create([
+            'name' => 'Test',
+            'asymmetric_key' => $privateKey
+        ]);
+
+        $echoService = EchoService::create($testMessage);
+        $echoService = serialize($echoService);
+        openssl_public_encrypt($echoService, $encrypted, $publicKey);
+
+        request()->json()->add([
+            'service' => EchoService::class,
+            'content' => base64_encode($encrypted),
+        ]);
+
+        /** @var Authenticate $middleware */
+        $middleware = $this->app->make(Authenticate::class);
+        $content = $middleware->decryptContent($service, request());
+
+        $this->assertInstanceOf(EchoService::class, $content);
+        $this->assertEquals($testMessage, $content->execute());
+    }
+
     public function testDecryptDisabled()
     {
         Config::set('service.encrypt', false);
@@ -323,8 +364,12 @@ class AuthenticateTest extends TestCase
         $this->assertEquals($testContent, $unserialized);
     }
 
+    /**
+     * @throws Exception
+     */
     public function testHandle()
     {
+        Config::set('service.enabled', true);
         $this->artisan('migrate')->run();
 
         $testMessage = 'Test';
@@ -361,8 +406,24 @@ class AuthenticateTest extends TestCase
         $this->assertEquals($testMessage, $response);
     }
 
+    /**
+     * @throws Exception
+     */
+    public function testHandleDisabled()
+    {
+        Config::set('service.enabled', false);
+        /** @var Authenticate $middleware */
+        $middleware = $this->app->make(Authenticate::class);
+        $this->expectException(HttpException::class);
+        $middleware->handle(request());
+    }
+
+    /**
+     * @throws Exception
+     */
     public function testHandleNoToken()
     {
+        Config::set('service.enabled', true);
         /** @var Authenticate $middleware */
         $middleware = $this->app->make(Authenticate::class);
         $this->expectException(HttpException::class);

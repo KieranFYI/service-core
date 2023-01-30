@@ -45,12 +45,12 @@ class QueryService extends AbstractService
         $this->model = $model;
     }
 
-    public function execute()
+    public function execute(): ?Collection
     {
         /** @var Service $service */
         $service = Auth::user();
         if (!($service instanceof Service)) {
-            return;
+            return null;
         }
         $type = ServiceModelType::where('name', $this->model)
             ->firstOrfail();
@@ -76,14 +76,6 @@ class QueryService extends AbstractService
             'builder' => $this->builder
         ]);
 
-        $this->collection = $query->get($this->columns);
-    }
-
-    /**
-     * @return Collection|null
-     */
-    public function collect(): ?Collection
-    {
-        return $this->collection;
+        return $query->get($this->columns);
     }
 }

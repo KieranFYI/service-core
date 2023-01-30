@@ -35,8 +35,7 @@ class QueryServiceTest extends TestCase
         $service->types()->save($type, ['accessible' => true]);
 
         $query = QueryService::create($builder, ['*'], Service::class);
-        $query->execute();
-        $this->assertInstanceOf(Collection::class, $query->collect());
+        $this->assertInstanceOf(Collection::class, $query->execute());
     }
 
     public function testExecuteNonService()
@@ -47,8 +46,7 @@ class QueryServiceTest extends TestCase
         $builder = app()->make(Builder::class);
 
         $query = QueryService::create($builder, ['*'], Service::class);
-        $query->execute();
-        $this->assertNull($query->collect());
+        $this->assertNull($query->execute());
     }
 
     public function testExecuteInvalidType()

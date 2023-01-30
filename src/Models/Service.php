@@ -22,7 +22,6 @@ use KieranFYI\Services\Core\Traits\Serviceable;
  * @property Collection $types
  * @property string $asymmetric_key
  * @property string $symmetric_key
- * @property Encrypter $encrypter
  * @property string $endpoint
  * @property string $key
  */
@@ -98,5 +97,25 @@ class Service extends Authenticatable
     public function setSymmetricKeyAttribute(string $value): void
     {
         $this->attributes['symmetric_key'] = Crypt::encryptString(base64_encode($value));
+    }
+
+    /**
+     * @return string|null
+     */
+    public function getAsymmetricKeyAttribute(): ?string
+    {
+        if (empty($this->attributes['asymmetric_key'])) {
+            return null;
+        }
+        return base64_decode(Crypt::decryptString($this->attributes['asymmetric_key']));
+    }
+
+    /**
+     * @param string $value
+     * @return void
+     */
+    public function setAsymmetricKeyAttribute(string $value): void
+    {
+        $this->attributes['asymmetric_key'] = Crypt::encryptString(base64_encode($value));
     }
 }

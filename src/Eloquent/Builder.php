@@ -23,21 +23,23 @@ class Builder extends QueryBuilder
      */
     private ?string $serviceModel = null;
 
+    public static function servicesCollection(): ?Collection
+    {
+        if (is_null(self::$servicesCollection)) {
+            self::$servicesCollection = collect();
+            self::$servicesCollection = Service::get();
+        }
+        return self::$servicesCollection;
+    }
+
     /**
      * @param array|string|string[] $columns
      * @return \Illuminate\Support\Collection
      */
     public function get($columns = ['*'])
     {
-        if (is_null(static::$servicesCollection)) {
-            // Set this to a non null value to "imply" the models have loaded and hit the database directly
-            // This should only run on the first database call of each website lifecycle.
-            static::$servicesCollection = collect();
-            static::$servicesCollection = Service::get();
-        }
-
-        $service = static::$servicesCollection->first(function (Service $service) {
-            return $service->types->contains($this->serviceModel);
+        $service = self::servicesCollection()->first(function (Service $service) {
+            return $service->relationLoaded('types') && $service->types->contains('name', $this->serviceModel);
         });
 
         if (is_null($service)) {
@@ -45,10 +47,14 @@ class Builder extends QueryBuilder
             return parent::get($columns);
         }
 
-        $query = new QueryService($this, $columns, $this->serviceModel);
-        $this->post($service, $query);
-
-        return $query->collect();
+        /*
+         * This can't be tested because any lookup that exists
+         * in our test database will cause an infinite lookup
+         * as each endpoint tries to resolve it causing a memory issue.
+         */
+        // @codeCoverageIgnoreStart
+        return $this->servicePost($service, QueryService::create($this, $columns, $this->serviceModel));
+        // @codeCoverageIgnoreEnd
     }
 
     /**
