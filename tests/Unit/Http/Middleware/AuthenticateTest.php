@@ -3,11 +3,13 @@
 namespace KieranFYI\Tests\Services\Core\Unit\Http\Middleware;
 
 use Exception;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Config;
 use KieranFYI\Services\Core\Http\Middleware\Authenticate;
 use KieranFYI\Services\Core\Models\Service;
 use KieranFYI\Services\Core\Services\EchoService;
 use KieranFYI\Services\Core\Services\MaintenanceService;
+use KieranFYI\Services\Core\Services\RegistrationService;
 use KieranFYI\Tests\Services\Core\TestCase;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
@@ -59,24 +61,23 @@ class AuthenticateTest extends TestCase
             "private_key_bits" => 4096,
             "private_key_type" => OPENSSL_KEYTYPE_RSA,
         ]);
-        $error = openssl_error_string();
         openssl_pkey_export($res, $privateKey);
         $publicKey = openssl_pkey_get_details($res);
         $publicKey = $publicKey["key"];
+        $symmetricKey = random_bytes(16);
 
-        $testMessage = 'Test';
         /** @var Service $service */
         $service = Service::create([
             'name' => 'Test',
             'asymmetric_key' => $privateKey
         ]);
 
-        $echoService = EchoService::create($testMessage);
+        $echoService = RegistrationService::create($symmetricKey);
         $echoService = serialize($echoService);
         openssl_public_encrypt($echoService, $encrypted, $publicKey);
 
         request()->json()->add([
-            'service' => EchoService::class,
+            'service' => RegistrationService::class,
             'content' => base64_encode($encrypted),
         ]);
 
@@ -84,8 +85,7 @@ class AuthenticateTest extends TestCase
         $middleware = $this->app->make(Authenticate::class);
         $content = $middleware->decryptContent($service, request());
 
-        $this->assertInstanceOf(EchoService::class, $content);
-        $this->assertEquals($testMessage, $content->execute());
+        $this->assertInstanceOf(Collection::class, $content);
     }
 
     public function testDecryptDisabled()

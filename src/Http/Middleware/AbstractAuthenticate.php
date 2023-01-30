@@ -105,12 +105,19 @@ abstract class AbstractAuthenticate implements AuthenticatesRequests
             if (strlen($content) < 16) {
                 abort(401);
             }
-
-            $key = substr($content, 0, 16);
-            $encrypted = substr($content, 16);
-            $content = openssl_decrypt($encrypted, config('app.cipher'), $service->symmetric_key, iv: $key);
-            if ($encrypted === $content || $content === false) {
-                abort(401);
+            if (!isset($service->symmetric_key)) {
+                openssl_private_decrypt($content, $decrypted, $service->asymmetric_key);
+                if ($decrypted === $content || $decrypted === false) {
+                    abort(401);
+                }
+                $content = $decrypted;
+            } else {
+                $key = substr($content, 0, 16);
+                $encrypted = substr($content, 16);
+                $content = openssl_decrypt($encrypted, config('app.cipher'), $service->symmetric_key, iv: $key);
+                if ($encrypted === $content || $content === false) {
+                    abort(401);
+                }
             }
         }
 

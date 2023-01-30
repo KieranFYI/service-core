@@ -36,11 +36,11 @@ class ServiceGenerate extends Command
     public function handle()
     {
         $res = openssl_pkey_new([
+            "digest_alg" => "sha512",
             "private_key_bits" => 4096,
             "private_key_type" => OPENSSL_KEYTYPE_RSA,
         ]);
 
-        $error = openssl_error_string();
         openssl_pkey_export($res, $privateKey);
         $publicKey = openssl_pkey_get_details($res);
         $publicKey = $publicKey["key"];
