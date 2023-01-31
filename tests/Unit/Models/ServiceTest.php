@@ -84,4 +84,20 @@ class ServiceTest extends TestCase
         $this->assertInstanceOf(BelongsToMany::class, $this->model->types());
         $this->assertInstanceOf(Collection::class, $this->model->types);
     }
+
+    public function testSymmetricKeyAttribute()
+    {
+        $this->assertNull($this->model->getSymmetricKeyAttribute());
+        $value = 'test';
+        $this->model->setSymmetricKeyAttribute($value);
+        $this->assertEquals($value, $this->model->getSymmetricKeyAttribute());
+    }
+
+    public function testAsymmetricKeyAttribute()
+    {
+        $this->assertNull($this->model->getAsymmetricKeyAttribute());
+        $value = 'test';
+        $this->model->setAsymmetricKeyAttribute($value);
+        $this->assertEquals($value, $this->model->getAsymmetricKeyAttribute());
+    }
 }

@@ -73,8 +73,8 @@ class AuthenticateTest extends TestCase
         ]);
 
         $echoService = RegistrationService::create($symmetricKey);
-        $echoService = serialize($echoService);
-        openssl_public_encrypt($echoService, $encrypted, $publicKey);
+        $serialized = serialize($echoService);
+        openssl_public_encrypt($serialized, $encrypted, $publicKey);
 
         request()->json()->add([
             'service' => RegistrationService::class,
@@ -85,7 +85,52 @@ class AuthenticateTest extends TestCase
         $middleware = $this->app->make(Authenticate::class);
         $content = $middleware->decryptContent($service, request());
 
-        $this->assertInstanceOf(Collection::class, $content);
+        $this->assertEquals($echoService, $content);
+    }
+
+    /**
+     * @throws Exception
+     */
+    public function testDecryptInvalidAsymmetricKey()
+    {
+        $this->artisan('migrate')->run();
+
+        $res = openssl_pkey_new([
+            "digest_alg" => "sha512",
+            "private_key_bits" => 4096,
+            "private_key_type" => OPENSSL_KEYTYPE_RSA,
+        ]);
+        openssl_pkey_export($res, $fakeKey);
+
+        $res = openssl_pkey_new([
+            "digest_alg" => "sha512",
+            "private_key_bits" => 4096,
+            "private_key_type" => OPENSSL_KEYTYPE_RSA,
+        ]);
+        openssl_pkey_export($res, $privateKey);
+        $publicKey = openssl_pkey_get_details($res);
+        $publicKey = $publicKey["key"];
+        $symmetricKey = random_bytes(16);
+
+        /** @var Service $service */
+        $service = Service::create([
+            'name' => 'Test',
+            'asymmetric_key' => $fakeKey
+        ]);
+
+        $echoService = RegistrationService::create($symmetricKey);
+        $serialized = serialize($echoService);
+        openssl_public_encrypt($serialized, $encrypted, $publicKey);
+
+        request()->json()->add([
+            'service' => RegistrationService::class,
+            'content' => base64_encode($encrypted),
+        ]);
+
+        /** @var Authenticate $middleware */
+        $middleware = $this->app->make(Authenticate::class);
+        $this->expectException(HttpException::class);
+        $middleware->decryptContent($service, request());
     }
 
     public function testDecryptDisabled()

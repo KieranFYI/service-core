@@ -2,7 +2,9 @@
 
 namespace KieranFYI\Services\Core\Console\Commands;
 
+use Exception;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 use KieranFYI\Services\Core\Models\Service;
 use KieranFYI\Services\Core\Services\RegistrationService;
 use KieranFYI\Services\Core\Traits\ServiceHTTPRequest;
@@ -32,28 +34,35 @@ class ServiceRegister extends Command
      */
     public function handle()
     {
-        $data = json_decode(base64_decode($this->argument('token')), true);
-        $service = Service::where('endpoint', $data['endpoint'])
-            ->firstOr(function () use ($data) {
-                return new Service([
-                    'endpoint' => $data['endpoint']
-                ]);
-            });
+        try {
+            $data = json_decode(base64_decode($this->argument('token')), true);
+            $service = Service::where('endpoint', $data['endpoint'])
+                ->firstOr(function () use ($data) {
+                    return new Service([
+                        'endpoint' => $data['endpoint']
+                    ]);
+                });
 
-        $service->fill([
-            'name' => $data['name'],
-            'endpoint' => $data['endpoint'],
-            'key' => $data['identifier'],
-            'asymmetric_key' => base64_decode($data['asymmetric_key']),
-        ])
-            ->save();
+            $symmetricKey = random_bytes(32);
 
-        $result = $this->post($service, new RegistrationService($service));
-        if ($result) {
-            $this->info('Registration Complete');
-            return Command::SUCCESS;
+            $service->fill([
+                'name' => $data['name'],
+                'endpoint' => $data['endpoint'],
+                'key' => $data['identifier'],
+                'asymmetric_key' => base64_decode($data['asymmetric_key']),
+                'symmetric_key' => $symmetricKey
+            ])
+                ->save();
+
+            $result = $this->servicePost($service, new RegistrationService($symmetricKey));
+            if ($result) {
+                $this->info('Registration Complete');
+                return Command::SUCCESS;
+            }
+
+        } catch (Exception $e) {
+            Log::error($e);
         }
-
         $this->error('Failed to Register');
         return Command::FAILURE;
     }

@@ -54,7 +54,7 @@ class ServiceGenerate extends Command
             'name' => config('app.name'),
             'endpoint' => route('service'),
             'identifier' => $service->key,
-            'public_key' => base64_encode($publicKey)
+            'asymmetric_key' => base64_encode($publicKey)
         ];
         $this->info(base64_encode(json_encode($data)));
         return Command::SUCCESS;

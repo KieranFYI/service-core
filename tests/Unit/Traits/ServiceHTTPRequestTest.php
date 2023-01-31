@@ -60,7 +60,7 @@ class ServiceHTTPRequestTest extends TestCase
     {
         Http::fake([
             route('service') => function (Request $request) {
-                $symmetricKey = random_bytes(16);
+                $symmetricKey = random_bytes(32);
                 $iv = random_bytes(16);
                 $data = $iv . openssl_encrypt(serialize('Test'), config('app.cipher'), $symmetricKey, iv: $iv);
                 return Http::response(base64_encode($data));

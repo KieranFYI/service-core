@@ -22,6 +22,6 @@ class ServiceGenerateTest extends TestCase
         $this->assertArrayHasKey('name', $data);
         $this->assertArrayHasKey('endpoint', $data);
         $this->assertArrayHasKey('identifier', $data);
-        $this->assertArrayHasKey('public_key', $data);
+        $this->assertArrayHasKey('asymmetric_key', $data);
     }
 }
