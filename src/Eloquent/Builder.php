@@ -2,23 +2,35 @@
 
 namespace KieranFYI\Services\Core\Eloquent;
 
-use Exception;
 use Illuminate\Database\Query\Builder as QueryBuilder;
-use Illuminate\Http\Client\ConnectionException;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Collection;
 use KieranFYI\Misc\Facades\Debugbar;
-use KieranFYI\Misc\Traits\HTTPRequestTrait;
-use Laravie\SerializesQuery\Query;
-use Symfony\Component\HttpKernel\Exception\HttpException;
+use KieranFYI\Services\Core\Models\Service;
+use KieranFYI\Services\Core\Services\QueryService;
+use KieranFYI\Services\Core\Traits\ServiceHTTPRequest;
 
 class Builder extends QueryBuilder
 {
-    use HTTPRequestTrait;
+    use ServiceHTTPRequest;
+
+    /**
+     * @var Collection|null
+     */
+    private static Collection|null $servicesCollection = null;
 
     /**
      * @var string|null
      */
     private ?string $serviceModel = null;
+
+    public static function servicesCollection(): ?Collection
+    {
+        if (is_null(self::$servicesCollection)) {
+            self::$servicesCollection = collect();
+            self::$servicesCollection = Service::get();
+        }
+        return self::$servicesCollection;
+    }
 
     /**
      * @param array|string|string[] $columns
@@ -26,61 +38,23 @@ class Builder extends QueryBuilder
      */
     public function get($columns = ['*'])
     {
-        $endpoint = null;
-        $endpoints = config('service.endpoints', []);
-        if (is_null($endpoints)) {
-            $endpoints = [];
-        }
-        foreach ($endpoints as $key => $models) {
-            if (!in_array($this->serviceModel, $models)) {
-                continue;
-            }
+        $service = self::servicesCollection()->first(function (Service $service) {
+            return $service->relationLoaded('types') && $service->types->contains('name', $this->serviceModel);
+        });
 
-            $endpoint = $key;
-            break;
-        }
-        if (is_null($endpoint)) {
-            Debugbar::debug('No service endpoint found');
+        if (is_null($service)) {
+            Debugbar::debug('No service found');
             return parent::get($columns);
         }
 
-        return Debugbar::measure('ServiceBuilder', function () use ($endpoint, $columns) {
-            try {
-                $startTime = microtime(true);
-                $response = $this->timeout(1)
-                    ->auth('Bearer ' . config('service.token'))
-                    ->userAgent(config('app.name'))
-                    ->post($endpoint, [
-                        'query' => Query::serialize($this),
-                        'columns' => $columns,
-                        'model' => $this->serviceModel,
-                    ]);
-
-                $time = microtime(true) - $startTime;
-                if ($response->unauthorized()) {
-                    abort(511);
-                } else if ($response->forbidden()) {
-                    abort(510);
-                }
-
-                $response->throw();
-
-                $threshold = config('debugbar.options.db.slow_threshold', false);
-                if (!$threshold || $time > $threshold) {
-                    if (Debugbar::hasCollector('queries')) {
-                        Debugbar::getCollector('queries')->addQuery($this->toSql(), $this->bindings, $time, DB::connection());
-                    }
-                }
-
-                return $response->collect();
-            } catch (HttpException $e) {
-                throw $e;
-            } catch (ConnectionException $e) {
-                abort(504);
-            } catch (Exception $e) {
-                abort(502);
-            }
-        });
+        /*
+         * This can't be tested because any lookup that exists
+         * in our test database will cause an infinite lookup
+         * as each endpoint tries to resolve it causing a memory issue.
+         */
+        // @codeCoverageIgnoreStart
+        return $this->servicePost($service, QueryService::create($this, $columns, $this->serviceModel));
+        // @codeCoverageIgnoreEnd
     }
 
     /**
