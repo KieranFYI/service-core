@@ -30,8 +30,8 @@
         "guzzlehttp/guzzle": "^7.5",
         "laravel/framework": "^9.19",
         "ext-curl": "*",
-        "kieranfyi/misc": "^0.3.14",
-        "kieranfyi/logging": "^0.3.12",
+        "kieranfyi/misc": "^0.3.15",
+        "kieranfyi/logging": "^0.3.13",
         "laravie/serialize-queries": "^2.1",
         "ext-openssl": "*"
     },
