@@ -1,6 +1,10 @@
 # Add 'test' label to any tests changes
+github:
+  - any: [ '.github/**/*' ]
+
+# Add 'test' label to any tests changes
 tests:
-  - any: [ 'tests/**/*' ]
+  - any: [ 'tests/**/*', 'phpunit.xml' ]
 
 # Add 'frontend` label to any resources changes
 frontend:
@@ -8,7 +12,7 @@ frontend:
 
 # Add 'backend` label to any app changes
 backend:
-  - any: [ 'src/**/*' ]
+  - any: [ 'app/**/*' ]
 
 # Add 'config` label to any app changes
 config:
