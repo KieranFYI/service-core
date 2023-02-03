@@ -9,6 +9,7 @@ use KieranFYI\Services\Core\Eloquent\Builder;
 use KieranFYI\Services\Core\Http\Middleware\Authenticate;
 use KieranFYI\Services\Core\Models\Service;
 use KieranFYI\Services\Core\Models\ServiceModelType;
+use KieranFYI\Tests\Services\Core\Models\ServiceableModel;
 use KieranFYI\Tests\Services\Core\TestCase;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
@@ -18,6 +19,12 @@ class BuilderTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+    }
+
+    protected function tearDown(): void
+    {
+        parent::tearDown();
+        Builder::clearServicesCollection();
     }
 
     private function fakeResponse()
@@ -39,6 +46,53 @@ class BuilderTest extends TestCase
                 }
             }
         ]);
+    }
+
+    public function testService()
+    {
+        $this->artisan('migrate');
+        $this->assertNull(Builder::service(ServiceableModel::class));
+    }
+
+    public function testServiceWithEndpoint()
+    {
+        $this->artisan('migrate');
+
+        /** @var Service $service */
+        $service = Service::create([
+            'endpoint' => route('service'),
+            'name' => 'Test',
+        ]);
+        $type = ServiceModelType::create([
+            'name' => Service::class
+        ]);
+        $service->types()->save($type);
+        $service->load('types');
+        Builder::servicesCollection()->add($service);
+
+        $response = Builder::service(Service::class);
+        $this->assertInstanceOf(Service::class, $response);
+        $this->assertTrue($service->is($response));
+    }
+
+    public function testServiceFromTable()
+    {
+        $this->artisan('migrate');
+
+        /** @var Service $service */
+        $service = Service::create([
+            'endpoint' => route('service'),
+            'name' => 'Test',
+        ]);
+        $type = ServiceModelType::create([
+            'name' => Service::class
+        ]);
+        $service->types()->save($type);
+        $service->load('types');
+        Builder::servicesCollection()->add($service);
+
+        $response = Builder::serviceFromTable($service->getTable());
+        $this->assertEquals(Service::class, $response);
     }
 
     public function testGet()

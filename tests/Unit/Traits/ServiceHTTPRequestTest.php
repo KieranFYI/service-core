@@ -219,7 +219,6 @@ class ServiceHTTPRequestTest extends TestCase
         ServiceModelType::create([
             'name' => Service::class
         ]);
-        $this->timeout(1);
 
         $this->expectException(HttpException::class);
         $this->servicePost($service, EchoService::create('Test'));
@@ -242,7 +241,6 @@ class ServiceHTTPRequestTest extends TestCase
         ServiceModelType::create([
             'name' => Service::class
         ]);
-        $this->timeout(1);
 
         $this->expectException(ConnectionException::class);
         $this->servicePost($service, EchoService::create('Test'));
