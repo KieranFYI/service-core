@@ -76,7 +76,7 @@ class Service extends Authenticatable
     {
         return $this->belongsToMany(ServiceModelType::class, ServiceModel::class)
             ->withTimestamps()
-            ->withPivot('last_used_at', 'accessible');
+            ->withPivot(['last_used_at', 'accessible']);
     }
 
     /**

@@ -19,9 +19,8 @@ trait Serviceable
     protected function newBaseQueryBuilder()
     {
         $connection = $this->getConnection();
-        return (new Builder(
+        return new Builder(
             $connection, $connection->getQueryGrammar(), $connection->getPostProcessor()
-        ))
-            ->serviceModel(static::class);
+        );
     }
 }
