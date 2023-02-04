@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Event;
 use KieranFYI\Services\Core\Events\RegisterServiceModelsEvent;
 use KieranFYI\Services\Core\Models\ServiceModelType;
+use KieranFYI\Services\Core\Traits\Serviceable;
 use KieranFYI\Services\Core\Traits\ServiceHTTPRequest;
 use TypeError;
 
@@ -65,6 +66,10 @@ class ServiceProvides extends Command
         foreach ($models as $model) {
             if (!is_a($model, Model::class, true)) {
                 throw new TypeError(self::class . '::handle(): $model must be of type ' . Model::class);
+            }
+
+            if (!in_array(Serviceable::class, class_uses_recursive($model))) {
+                continue;
             }
 
             $types[] = $model;
