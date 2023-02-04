@@ -22,7 +22,7 @@ class ServicesCorePackageServiceProvider extends ServiceProvider
      */
     public function boot(Router $router)
     {
-        Relation::enforceMorphMap([
+        Relation::morphMap([
             'service' => Service::class,
             'serviceModel' => ServiceModel::class,
             'serviceModelType' => ServiceModelType::class,
