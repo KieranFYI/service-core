@@ -4,6 +4,7 @@ namespace KieranFYI\Services\Core\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Event;
 use KieranFYI\Services\Core\Events\RegisterServiceModelsEvent;
 use KieranFYI\Services\Core\Models\ServiceModelType;
@@ -35,20 +36,13 @@ class ServiceProvides extends Command
      */
     public function handle()
     {
-
         $results = Event::dispatch(RegisterServiceModelsEvent::class);
-        $types = [];
+        $types = $this->types(array_values(Relation::$morphMap));
         foreach ($results as $models) {
             if (!is_array($models)) {
                 throw new TypeError(self::class . '::handle(): $models must be of array ' . Model::class);
             }
-            foreach ($models as $model) {
-                if (!is_a($model, Model::class, true)) {
-                    throw new TypeError(self::class . '::handle(): $model must be of type ' . Model::class);
-                }
-
-                $types[] = $model;
-            }
+            $types = array_merge($types, $this->types($models));
         }
 
         ServiceModelType::whereNotIn('name', $types)
@@ -60,4 +54,23 @@ class ServiceProvides extends Command
 
         return Command::SUCCESS;
     }
+
+    /**
+     * @param array $models
+     * @return array
+     */
+    private function types(array $models): array
+    {
+        $types = [];
+        foreach ($models as $model) {
+            if (!is_a($model, Model::class, true)) {
+                throw new TypeError(self::class . '::handle(): $model must be of type ' . Model::class);
+            }
+
+            $types[] = $model;
+        }
+
+        return $types;
+    }
+
 }

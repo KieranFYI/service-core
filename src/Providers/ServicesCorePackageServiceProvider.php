@@ -2,13 +2,12 @@
 
 namespace KieranFYI\Services\Core\Providers;
 
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Routing\Router;
-use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 use KieranFYI\Services\Core\Console\Commands\ServiceGenerate;
 use KieranFYI\Services\Core\Console\Commands\ServiceProvides;
 use KieranFYI\Services\Core\Console\Commands\ServiceRegister;
-use KieranFYI\Services\Core\Events\RegisterServiceModelsEvent;
 use KieranFYI\Services\Core\Http\Middleware\Authenticate;
 use KieranFYI\Services\Core\Models\Service;
 use KieranFYI\Services\Core\Models\ServiceModel;
@@ -23,7 +22,13 @@ class ServicesCorePackageServiceProvider extends ServiceProvider
      */
     public function boot(Router $router)
     {
-        $root = __DIR__ . '/../..';
+        Relation::enforceMorphMap([
+            'service' => Service::class,
+            'serviceModel' => ServiceModel::class,
+            'serviceModelType' => ServiceModelType::class,
+        ]);
+
+        $root = realpath(__DIR__ . '/../..');
 
         $this->loadMigrationsFrom($root . '/database/migrations');
         $this->mergeConfigFrom($root . '/config/service.php', 'service');
@@ -47,17 +52,9 @@ class ServicesCorePackageServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([
                 ServiceGenerate::class,
+                ServiceProvides::class,
                 ServiceRegister::class,
-                ServiceProvides::class
             ]);
-
-            Event::listen(RegisterServiceModelsEvent::class, function () {
-                return [
-                    Service::class,
-                    ServiceModel::class,
-                    ServiceModelType::class,
-                ];
-            });
         }
     }
 }
